@@ -24,6 +24,28 @@ class WhatsAppInstance {
         logger: pino({
             level: config.log.level,
         }),
+        patchMessageBeforeSending: (message) => {
+            const requiresPatch = !!(
+                message.buttonsMessage ||
+                // || message.templateMessage
+                message.listMessage
+            );
+            if (requiresPatch) {
+                message = {
+                    viewOnceMessage: {
+                        message: {
+                            messageContextInfo: {
+                                deviceListMetadataVersion: 2,
+                                deviceListMetadata: {},
+                            },
+                            ...message,
+                        },
+                    },
+                };
+            }
+
+            return message;
+        },
     }
     key = ''
     authState
@@ -332,31 +354,34 @@ class WhatsAppInstance {
         }
     }
 
-    getWhatsAppId(id) {
+    async getWhatsAppId(id) {
         if (id.includes('@g.us') || id.includes('@s.whatsapp.net')) return id
-        return id.includes('-') ? `${id}@g.us` : `${id}@s.whatsapp.net`
+        if (id.includes('-')) return `${id}@g.us`
+        const [result] = await this.instance.sock?.onWhatsApp(id)
+        if (result?.exists) return result.jid
+        throw new Error('no account exists')
     }
 
-    async verifyId(id) {
+    /* async verifyId(id) {
         if (id.includes('@g.us')) return true
         const [result] = await this.instance.sock?.onWhatsApp(id)
         if (result?.exists) return true
         throw new Error('no account exists')
-    }
+    } */
 
     async sendTextMessage(to, message) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const data = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             { text: message }
         )
         return data
     }
 
     async sendMediaFile(to, file, type, caption = '', filename) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const data = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 mimetype: file.mimetype,
                 [type]: file.buffer,
@@ -369,10 +394,10 @@ class WhatsAppInstance {
     }
 
     async sendUrlMediaFile(to, url, type, mimeType, caption = '') {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
 
         const data = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 [type]: {
                     url: url,
@@ -385,35 +410,35 @@ class WhatsAppInstance {
     }
 
     async DownloadProfile(of) {
-        await this.verifyId(this.getWhatsAppId(of))
+        const jid = await this.getWhatsAppId(of)
         const ppUrl = await this.instance.sock?.profilePictureUrl(
-            this.getWhatsAppId(of),
+            jid,
             'image'
         )
         return ppUrl
     }
 
     async getUserStatus(of) {
-        await this.verifyId(this.getWhatsAppId(of))
+        const jid = await this.getWhatsAppId(of)
         const status = await this.instance.sock?.fetchStatus(
-            this.getWhatsAppId(of)
+            jid
         )
         return status
     }
 
     async blockUnblock(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const status = await this.instance.sock?.updateBlockStatus(
-            this.getWhatsAppId(to),
+            jid,
             data
         )
         return status
     }
 
     async sendButtonMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 templateButtons: processButton(data.buttons),
                 text: data.text ?? '',
@@ -424,10 +449,10 @@ class WhatsAppInstance {
     }
 
     async sendContactMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const vcard = generateVC(data)
         const result = await this.instance.sock?.sendMessage(
-            await this.getWhatsAppId(to),
+            jid,
             {
                 contacts: {
                     displayName: data.fullName,
@@ -439,9 +464,9 @@ class WhatsAppInstance {
     }
 
     async sendListMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 text: data.text,
                 sections: data.sections,
@@ -454,10 +479,10 @@ class WhatsAppInstance {
     }
 
     async sendMediaButtonMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
 
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 [data.mediaType]: {
                     url: data.image,
@@ -472,18 +497,19 @@ class WhatsAppInstance {
     }
 
     async setStatus(status, to) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
 
-        const result = await this.instance.sock?.sendPresenceUpdate(status, to)
+        const result = await this.instance.sock?.sendPresenceUpdate(status, jid)
         return result
     }
 
     // change your display picture or a group's
     async updateProfilePicture(id, url) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const img = await axios.get(url, { responseType: 'arraybuffer' })
             const res = await this.instance.sock?.updateProfilePicture(
-                id,
+                jid,
                 img.data
             )
             return res
@@ -499,8 +525,9 @@ class WhatsAppInstance {
     // get user or group object from db by id
     async getUserOrGroupById(id) {
         try {
+            const jid = await this.getWhatsAppId(id)
             let Chats = await this.getChat()
-            const group = Chats.find((c) => c.id === this.getWhatsAppId(id))
+            const group = Chats.find((c) => c.id === jid)
             if (!group)
                 throw new Error(
                     'unable to get group, check if the group exists'
@@ -514,7 +541,7 @@ class WhatsAppInstance {
 
     // Group Methods
     parseParticipants(users) {
-        return users.map((users) => this.getWhatsAppId(users))
+        return users.map(async (users) => await this.getWhatsAppId(users))
     }
 
     async updateDbGroupsParticipants() {
@@ -565,8 +592,9 @@ class WhatsAppInstance {
 
     async addNewParticipant(id, users) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupAdd(
-                this.getWhatsAppId(id),
+                jid,
                 this.parseParticipants(users)
             )
             return res
@@ -581,8 +609,9 @@ class WhatsAppInstance {
 
     async makeAdmin(id, users) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupMakeAdmin(
-                this.getWhatsAppId(id),
+                jid,
                 this.parseParticipants(users)
             )
             return res
@@ -597,8 +626,9 @@ class WhatsAppInstance {
 
     async demoteAdmin(id, users) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupDemoteAdmin(
-                this.getWhatsAppId(id),
+                jid,
                 this.parseParticipants(users)
             )
             return res
@@ -627,10 +657,11 @@ class WhatsAppInstance {
 
     async leaveGroup(id) {
         try {
+            const jid = await this.getWhatsAppId(id)
             let Chats = await this.getChat()
-            const group = Chats.find((c) => c.id === id)
+            const group = Chats.find((c) => c.id === jid)
             if (!group) throw new Error('no group exists')
-            return await this.instance.sock?.groupLeave(id)
+            return await this.instance.sock?.groupLeave(jid)
         } catch (e) {
             logger.error(e)
             logger.error('Error leave group failed')
@@ -639,13 +670,14 @@ class WhatsAppInstance {
 
     async getInviteCodeGroup(id) {
         try {
+            const jid = await this.getWhatsAppId(id)
             let Chats = await this.getChat()
-            const group = Chats.find((c) => c.id === id)
+            const group = Chats.find((c) => c.id === jid)
             if (!group)
                 throw new Error(
                     'unable to get invite code, check if the group exists'
                 )
-            return await this.instance.sock?.groupInviteCode(id)
+            return await this.instance.sock?.groupInviteCode(jid)
         } catch (e) {
             logger.error(e)
             logger.error('Error get invite group failed')
@@ -772,8 +804,9 @@ class WhatsAppInstance {
     // update promote demote remove
     async groupParticipantsUpdate(id, users, action) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupParticipantsUpdate(
-                this.getWhatsAppId(id),
+                jid,
                 this.parseParticipants(users),
                 action
             )
@@ -794,8 +827,9 @@ class WhatsAppInstance {
     // only allow admins to send messages
     async groupSettingUpdate(id, action) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupSettingUpdate(
-                this.getWhatsAppId(id),
+                jid,
                 action
             )
             return res
@@ -811,8 +845,9 @@ class WhatsAppInstance {
 
     async groupUpdateSubject(id, subject) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupUpdateSubject(
-                this.getWhatsAppId(id),
+                jid,
                 subject
             )
             return res
@@ -828,8 +863,9 @@ class WhatsAppInstance {
 
     async groupUpdateDescription(id, description) {
         try {
+            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupUpdateDescription(
-                this.getWhatsAppId(id),
+                jid,
                 description
             )
             return res
