@@ -5,6 +5,7 @@ WORKDIR /home/node/app
 
 RUN corepack enable
 RUN corepack prepare yarn@3.3.0 --activate
+RUN apk add --no-cache git
 
 # Bundle app source
 COPY . .
