@@ -11,7 +11,5 @@ RUN apk add --no-cache git
 COPY . .
 
 RUN yarn install
-# If you are building your code for production
-RUN npm ci --only=production
 
 CMD [ "yarn", "start" ]
