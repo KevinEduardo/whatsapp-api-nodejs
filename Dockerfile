@@ -4,7 +4,7 @@ FROM node:17.2.0-alpine
 WORKDIR /home/node/app
 
 RUN corepack enable
-RUN corepack prepare yarn@stable --activate
+RUN corepack prepare yarn@3.3.0 --activate
 
 # Bundle app source
 COPY . .
