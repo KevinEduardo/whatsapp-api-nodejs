@@ -1,0 +1,15 @@
+FROM node:17.2.0-alpine
+
+# Create app directory
+WORKDIR /home/node/app
+
+RUN corepack enable
+RUN corepack prepare yarn@3.3.0 --activate
+RUN apk add --no-cache git
+
+# Bundle app source
+COPY . .
+
+RUN yarn install
+
+CMD [ "yarn", "start" ]

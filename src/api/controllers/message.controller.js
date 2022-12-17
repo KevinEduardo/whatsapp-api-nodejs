@@ -112,13 +112,3 @@ exports.SetStatus = async (req, res) => {
     )
     return res.status(201).json({ error: false, data: data })
 }
-
-exports.Read = async (req, res) => {
-    const data = await WhatsAppInstances[req.query.key].readMessage(req.body.msg)
-    return res.status(201).json({ error: false, data: data })
-}
-
-exports.React = async (req, res) => {
-    const data = await WhatsAppInstances[req.query.key].reactMessage(req.body.id, req.body.key, req.body.emoji)
-    return res.status(201).json({ error: false, data: data })
-}
