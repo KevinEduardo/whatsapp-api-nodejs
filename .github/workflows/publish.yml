@@ -1,4 +1,4 @@
-name: publish
+name: Build Docker Image
 on: push
 jobs:
   publish-docker-image:
@@ -14,5 +14,5 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: |
-            docker build . --tag ghcr.io/KevinEduardo/whatsapp-api-nodejs:latest
-            docker push ghcr.io/KevinEduardo/whatsapp-api-nodejs:latest
+            docker build . --tag ghcr.io/kevineduardo/whatsapp-api-nodejs:latest
+            docker push ghcr.io/kevineduardo/whatsapp-api-nodejs:latest
