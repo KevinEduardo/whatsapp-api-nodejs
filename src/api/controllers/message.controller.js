@@ -40,7 +40,7 @@ exports.Document = async (req, res) => {
         req.body.id,
         req.file,
         'document',
-        '',
+        req.body.caption,
         req.body.filename
     )
     return res.status(201).json({ error: false, data: data })

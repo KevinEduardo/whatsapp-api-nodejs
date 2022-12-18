@@ -11,7 +11,7 @@ jobs:
         steps:
             - uses: actions/checkout@v2
               with:
-                  token: ${{ secrets.TOKEN }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
                   ref: ${{ github.head_ref }}
 
             - uses: actions/setup-node@v1
