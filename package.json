@@ -32,6 +32,7 @@
     "author": "Mohd Salman Ansari <salman0ansariii@gmail.com>",
     "license": "MIT",
     "dependencies": {
+        "node-cache": "^5.1.2",
         "@adiwajshing/baileys": "^5.0.0",
         "axios": "^1.1.3",
         "dotenv": "^16.0.3",

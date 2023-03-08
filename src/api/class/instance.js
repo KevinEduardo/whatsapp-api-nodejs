@@ -1,9 +1,16 @@
 /* eslint-disable no-unsafe-optional-chaining */
 const QRCode = require('qrcode')
 const pino = require('pino')
+const NodeCache = require( "node-cache" );
 const {
     default: makeWASocket,
     DisconnectReason,
+    makeCacheableSignalKeyStore,
+    makeInMemoryStore,
+    proto,
+    useMultiFileAuthState,
+    WAMessageContent,
+    WAMessageKey,
 } = require('@adiwajshing/baileys')
 const { unlinkSync } = require('fs')
 const { v4: uuidv4 } = require('uuid')
@@ -17,6 +24,8 @@ const downloadMessage = require('../helper/downloadMsg')
 const logger = require('pino')()
 const useMongoDBAuthState = require('../helper/mongoAuthState')
 
+const msgRetryCounterCache = new NodeCache()
+
 class WhatsAppInstance {
     socketConfig = {
         defaultQueryTimeoutMs: undefined,
@@ -25,6 +34,7 @@ class WhatsAppInstance {
         logger: pino({
             level: config.log.level,
         }),
+        msgRetryCounterCache,
         syncFullHistory: false,
         patchMessageBeforeSending: (message) => {
             const requiresPatch = !!(
@@ -47,13 +57,6 @@ class WhatsAppInstance {
             }
         
             return message
-        },
-        getMessage: async (key) => {
-            if (store) {
-                const msg = await store.loadMessage(key.remoteJid, key.id)
-                return msg.message || undefined
-            }
-            return proto.Message.fromObject({})
         },
     }
     key = ''
