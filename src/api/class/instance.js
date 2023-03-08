@@ -445,7 +445,9 @@ class WhatsAppInstance {
                 templateButtons: processButton(data.buttons),
                 text: data.text ?? '',
                 footer: data.footerText ?? '',
-                viewOnce: true
+            },
+            {
+                ephemeralExpiration: 604800
             }
         )
         return result
@@ -476,7 +478,9 @@ class WhatsAppInstance {
                 buttonText: data.buttonText,
                 footer: data.description,
                 title: data.title,
-                viewOnce: true
+            },
+            {
+                ephemeralExpiration: 604800
             }
         )
         return result
@@ -495,7 +499,9 @@ class WhatsAppInstance {
                 caption: data.text,
                 templateButtons: processButton(data.buttons),
                 mimetype: data.mimeType,
-                viewOnce: true
+            },
+            {
+                ephemeralExpiration: 604800
             }
         )
         return result
