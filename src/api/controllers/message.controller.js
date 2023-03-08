@@ -40,7 +40,7 @@ exports.Document = async (req, res) => {
         req.body.id,
         req.file,
         'document',
-        req.body.caption,
+        '',
         req.body.filename
     )
     return res.status(201).json({ error: false, data: data })
@@ -110,5 +110,15 @@ exports.SetStatus = async (req, res) => {
         req.body.status,
         req.body.id
     )
+    return res.status(201).json({ error: false, data: data })
+}
+
+exports.Read = async (req, res) => {
+    const data = await WhatsAppInstances[req.query.key].readMessage(req.body.msg)
+    return res.status(201).json({ error: false, data: data })
+}
+
+exports.React = async (req, res) => {
+    const data = await WhatsAppInstances[req.query.key].reactMessage(req.body.id, req.body.key, req.body.emoji)
     return res.status(201).json({ error: false, data: data })
 }

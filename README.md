@@ -14,6 +14,16 @@
 
 <a href="http://github.com/salman0ansari/whatsapp-api-nodejs"><img title="Hits" src="http://hits.dwyl.com/salman0ansari/whatsapp-api-nodejs.svg?style=flat-square"></a>
 </p>
+<br>
+  <a href="https://www.instagram.com/salman0ansari/">
+     <img src="https://img.shields.io/badge/Instagram-E4405F.svg?style=for-the-badge&logo=Instagram&logoColor=white" alt="Instagram Badge"/></a>
+  <a href="https://t.me/salman0ansari">
+  <img src="https://img.shields.io/badge/Telegram-informational?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Badge"/>
+</a>
+ <a href="https://join.skype.com/invite/rI5pLf9YIvTA">
+  <img src="https://img.shields.io/badge/Skype-00AFF0.svg?style=for-the-badge&logo=Skype&logoColor=white" alt="Skype Badge"/>
+</a>
+<br>
 <a href="https://www.buymeacoffee.com/salman0ansari" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 </div>
 
@@ -89,6 +99,26 @@ Response:
     "key": "d7e2abff-3ac8-44a9-a738-1b28e0fca8a5"
 }
 ```
+## WEBHOOK_ALLOWED_EVENTS
+You can set which events you want to send to webhook by setting the environment variable `WEBHOOK_ALLOWED_EVENTS`
+
+Set a comma seperated list of events you want to get notified about. 
+
+Default value is `all` which will forward all events.
+
+Allowed values:
+- `connection` - receive all connection events
+- `connection:open` - receive open connection events
+- `connection:close` - receive close connection events
+- `presense` - receive presence events
+- `messages` - receive all messages event
+- `call` - receive all events related to calls
+- `call:terminate` - receive call terminate events
+- `call:offer` - receive call terminate event
+- `groups` - receive all events related to groups
+- `group_participants` - receive all events related to group participants
+
+You can also use the Baileys event format example: `messages.upsert`
 
 ## Generate custom instance with custom key and custom webhook.
 

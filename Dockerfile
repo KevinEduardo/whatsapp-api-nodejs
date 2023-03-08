@@ -1,15 +1,17 @@
-FROM node:17.2.0-alpine
+FROM node:19-alpine
 
-# Create app directory
-WORKDIR /home/node/app
+ARG _WORKDIR=/home/node/app
+ARG PORT=3333
 
-RUN corepack enable
-RUN corepack prepare yarn@3.3.0 --activate
-RUN apk add --no-cache git
+USER root
+RUN apk add git
 
-# Bundle app source
-COPY . .
+WORKDIR ${_WORKDIR}
 
+ADD . ${_WORKDIR}
 RUN yarn install
 
-CMD [ "yarn", "start" ]
+USER node
+EXPOSE ${PORT}
+
+CMD yarn start

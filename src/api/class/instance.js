@@ -24,28 +24,6 @@ class WhatsAppInstance {
         logger: pino({
             level: config.log.level,
         }),
-        patchMessageBeforeSending: (message) => {
-            const requiresPatch = !!(
-                message.buttonsMessage ||
-                // || message.templateMessage
-                message.listMessage
-            );
-            if (requiresPatch) {
-                message = {
-                    viewOnceMessage: {
-                        message: {
-                            messageContextInfo: {
-                                deviceListMetadataVersion: 2,
-                                deviceListMetadata: {},
-                            },
-                            ...message,
-                        },
-                    },
-                };
-            }
-
-            return message;
-        },
     }
     key = ''
     authState
@@ -80,14 +58,15 @@ class WhatsAppInstance {
         }
     }
 
-    async SendWebhook(type, body) {
+    async SendWebhook(type, body, key) {
         if (!this.allowWebhook) return
         this.axiosInstance
             .post('', {
                 type,
                 body,
+                instanceKey: key,
             })
-            .catch(() => {})
+            .catch(() => { })
     }
 
     async init() {
@@ -126,9 +105,10 @@ class WhatsAppInstance {
                     this.instance.online = false
                 }
 
+                if (['all', 'connection', 'connection.update', 'connection:close'].some((e) => config.webhookAllowedEvents.includes(e)))
                 await this.SendWebhook('connection', {
                     connection: connection,
-                })
+                }, this.key)
             } else if (connection === 'open') {
                 if (config.mongoose.enabled) {
                     let alreadyThere = await Chat.findOne({
@@ -140,10 +120,10 @@ class WhatsAppInstance {
                     }
                 }
                 this.instance.online = true
-
+                if (['all', 'connection', 'connection.update', 'connection:open'].some((e) => config.webhookAllowedEvents.includes(e)))
                 await this.SendWebhook('connection', {
                     connection: connection,
-                })
+                }, this.key)
             }
 
             if (qr) {
@@ -164,7 +144,8 @@ class WhatsAppInstance {
 
         // sending presence
         sock?.ev.on('presence.update', async (json) => {
-            await this.SendWebhook('presence', json)
+            if (['all', 'presence', 'presence.update'].some((e) => config.webhookAllowedEvents.includes(e)))
+            await this.SendWebhook('presence', json, this.key)
         })
 
         // on receive all chats
@@ -223,12 +204,24 @@ class WhatsAppInstance {
         })
 
         // on new mssage
-        sock?.ev.on('messages.upsert', (m) => {
+        sock?.ev.on('messages.upsert', async (m) => {
             //console.log('messages.upsert')
             //console.log(m)
             if (m.type === 'prepend')
                 this.instance.messages.unshift(...m.messages)
             if (m.type !== 'notify') return
+
+            // https://adiwajshing.github.io/Baileys/#reading-messages
+            if (config.markMessagesRead) {
+                const unreadMessages = m.messages.map(msg => {
+                    return {
+                        remoteJid: msg.key.remoteJid,
+                        id: msg.key.id,
+                        participant: msg.key?.participant
+                    }
+                })
+                await sock.readMessages(unreadMessages)
+            }
 
             this.instance.messages.unshift(...m.messages)
 
@@ -277,8 +270,8 @@ class WhatsAppInstance {
                             break
                     }
                 }
-
-                await this.SendWebhook('message', webhookData)
+                if (['all', 'messages', 'messages.upsert'].some((e) => config.webhookAllowedEvents.includes(e)))
+                await this.SendWebhook('message', webhookData, this.key)
             })
         })
 
@@ -290,7 +283,7 @@ class WhatsAppInstance {
             if (data.content) {
                 if (data.content.find((e) => e.tag === 'offer')) {
                     const content = data.content.find((e) => e.tag === 'offer')
-
+                    if (['all', 'call', 'CB:call', 'call:offer'].some((e) => config.webhookAllowedEvents.includes(e)))
                     await this.SendWebhook('call_offer', {
                         id: content.attrs['call-id'],
                         timestamp: parseInt(data.attrs.t),
@@ -299,12 +292,13 @@ class WhatsAppInstance {
                             platform: data.attrs.platform,
                             platform_version: data.attrs.version,
                         },
-                    })
+                    }, this.key)
                 } else if (data.content.find((e) => e.tag === 'terminate')) {
                     const content = data.content.find(
                         (e) => e.tag === 'terminate'
                     )
 
+                    if (['all', 'call', 'call:terminate'].some((e) => config.webhookAllowedEvents.includes(e)))
                     await this.SendWebhook('call_terminate', {
                         id: content.attrs['call-id'],
                         user: {
@@ -312,7 +306,7 @@ class WhatsAppInstance {
                         },
                         timestamp: parseInt(data.attrs.t),
                         reason: data.content[0].attrs.reason,
-                    })
+                    }, this.key)
                 }
             }
         })
@@ -321,28 +315,39 @@ class WhatsAppInstance {
             //console.log('groups.upsert')
             //console.log(newChat)
             this.createGroupByApp(newChat)
+            if (['all', 'groups', 'groups.upsert'].some((e) => config.webhookAllowedEvents.includes(e)))
             await this.SendWebhook('group_created', {
                 data: newChat,
-            })
+            }, this.key)
         })
 
         sock?.ev.on('groups.update', async (newChat) => {
             //console.log('groups.update')
             //console.log(newChat)
             this.updateGroupSubjectByApp(newChat)
+            if (['all', 'groups', 'groups.update'].some((e) => config.webhookAllowedEvents.includes(e)))
             await this.SendWebhook('group_updated', {
                 data: newChat,
-            })
+            }, this.key)
         })
 
         sock?.ev.on('group-participants.update', async (newChat) => {
             //console.log('group-participants.update')
             //console.log(newChat)
             this.updateGroupParticipantsByApp(newChat)
+            if (['all', 'groups', 'group_participants', 'group-participants.update'].some((e) => config.webhookAllowedEvents.includes(e)))
             await this.SendWebhook('group_participants_updated', {
                 data: newChat,
-            })
+            }, this.key)
         })
+    }
+
+    async deleteInstance(key) {
+        try {
+            await Chat.findOneAndDelete({ key: key })
+        } catch (e) {
+            logger.error('Error updating document failed')
+        }
     }
 
     async getInstanceDetail(key) {
@@ -354,34 +359,31 @@ class WhatsAppInstance {
         }
     }
 
-    async getWhatsAppId(id) {
+    getWhatsAppId(id) {
         if (id.includes('@g.us') || id.includes('@s.whatsapp.net')) return id
-        if (id.includes('-')) return `${id}@g.us`
-        const [result] = await this.instance.sock?.onWhatsApp(id)
-        if (result?.exists) return result.jid
-        throw new Error('no account exists')
+        return id.includes('-') ? `${id}@g.us` : `${id}@s.whatsapp.net`
     }
 
-    /* async verifyId(id) {
+    async verifyId(id) {
         if (id.includes('@g.us')) return true
         const [result] = await this.instance.sock?.onWhatsApp(id)
         if (result?.exists) return true
         throw new Error('no account exists')
-    } */
+    }
 
     async sendTextMessage(to, message) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
         const data = await this.instance.sock?.sendMessage(
-            jid,
+            this.getWhatsAppId(to),
             { text: message }
         )
         return data
     }
 
     async sendMediaFile(to, file, type, caption = '', filename) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
         const data = await this.instance.sock?.sendMessage(
-            jid,
+            this.getWhatsAppId(to),
             {
                 mimetype: file.mimetype,
                 [type]: file.buffer,
@@ -394,10 +396,10 @@ class WhatsAppInstance {
     }
 
     async sendUrlMediaFile(to, url, type, mimeType, caption = '') {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
 
         const data = await this.instance.sock?.sendMessage(
-            jid,
+            this.getWhatsAppId(to),
             {
                 [type]: {
                     url: url,
@@ -410,49 +412,50 @@ class WhatsAppInstance {
     }
 
     async DownloadProfile(of) {
-        const jid = await this.getWhatsAppId(of)
+        await this.verifyId(this.getWhatsAppId(of))
         const ppUrl = await this.instance.sock?.profilePictureUrl(
-            jid,
+            this.getWhatsAppId(of),
             'image'
         )
         return ppUrl
     }
 
     async getUserStatus(of) {
-        const jid = await this.getWhatsAppId(of)
+        await this.verifyId(this.getWhatsAppId(of))
         const status = await this.instance.sock?.fetchStatus(
-            jid
+            this.getWhatsAppId(of)
         )
         return status
     }
 
     async blockUnblock(to, data) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
         const status = await this.instance.sock?.updateBlockStatus(
-            jid,
+            this.getWhatsAppId(to),
             data
         )
         return status
     }
 
     async sendButtonMessage(to, data) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
         const result = await this.instance.sock?.sendMessage(
-            jid,
+            this.getWhatsAppId(to),
             {
                 templateButtons: processButton(data.buttons),
                 text: data.text ?? '',
                 footer: data.footerText ?? '',
+                viewOnce: true
             }
         )
         return result
     }
 
     async sendContactMessage(to, data) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
         const vcard = generateVC(data)
         const result = await this.instance.sock?.sendMessage(
-            jid,
+            await this.getWhatsAppId(to),
             {
                 contacts: {
                     displayName: data.fullName,
@@ -464,25 +467,26 @@ class WhatsAppInstance {
     }
 
     async sendListMessage(to, data) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
         const result = await this.instance.sock?.sendMessage(
-            jid,
+            this.getWhatsAppId(to),
             {
                 text: data.text,
                 sections: data.sections,
                 buttonText: data.buttonText,
                 footer: data.description,
                 title: data.title,
+                viewOnce: true
             }
         )
         return result
     }
 
     async sendMediaButtonMessage(to, data) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
 
         const result = await this.instance.sock?.sendMessage(
-            jid,
+            this.getWhatsAppId(to),
             {
                 [data.mediaType]: {
                     url: data.image,
@@ -491,25 +495,25 @@ class WhatsAppInstance {
                 caption: data.text,
                 templateButtons: processButton(data.buttons),
                 mimetype: data.mimeType,
+                viewOnce: true
             }
         )
         return result
     }
 
     async setStatus(status, to) {
-        const jid = await this.getWhatsAppId(to)
+        await this.verifyId(this.getWhatsAppId(to))
 
-        const result = await this.instance.sock?.sendPresenceUpdate(status, jid)
+        const result = await this.instance.sock?.sendPresenceUpdate(status, to)
         return result
     }
 
     // change your display picture or a group's
     async updateProfilePicture(id, url) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const img = await axios.get(url, { responseType: 'arraybuffer' })
             const res = await this.instance.sock?.updateProfilePicture(
-                jid,
+                id,
                 img.data
             )
             return res
@@ -525,9 +529,8 @@ class WhatsAppInstance {
     // get user or group object from db by id
     async getUserOrGroupById(id) {
         try {
-            const jid = await this.getWhatsAppId(id)
             let Chats = await this.getChat()
-            const group = Chats.find((c) => c.id === jid)
+            const group = Chats.find((c) => c.id === this.getWhatsAppId(id))
             if (!group)
                 throw new Error(
                     'unable to get group, check if the group exists'
@@ -541,7 +544,7 @@ class WhatsAppInstance {
 
     // Group Methods
     parseParticipants(users) {
-        return users.map(async (users) => await this.getWhatsAppId(users))
+        return users.map((users) => this.getWhatsAppId(users))
     }
 
     async updateDbGroupsParticipants() {
@@ -592,9 +595,8 @@ class WhatsAppInstance {
 
     async addNewParticipant(id, users) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupAdd(
-                jid,
+                this.getWhatsAppId(id),
                 this.parseParticipants(users)
             )
             return res
@@ -609,9 +611,8 @@ class WhatsAppInstance {
 
     async makeAdmin(id, users) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupMakeAdmin(
-                jid,
+                this.getWhatsAppId(id),
                 this.parseParticipants(users)
             )
             return res
@@ -626,9 +627,8 @@ class WhatsAppInstance {
 
     async demoteAdmin(id, users) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupDemoteAdmin(
-                jid,
+                this.getWhatsAppId(id),
                 this.parseParticipants(users)
             )
             return res
@@ -657,11 +657,10 @@ class WhatsAppInstance {
 
     async leaveGroup(id) {
         try {
-            const jid = await this.getWhatsAppId(id)
             let Chats = await this.getChat()
-            const group = Chats.find((c) => c.id === jid)
+            const group = Chats.find((c) => c.id === id)
             if (!group) throw new Error('no group exists')
-            return await this.instance.sock?.groupLeave(jid)
+            return await this.instance.sock?.groupLeave(id)
         } catch (e) {
             logger.error(e)
             logger.error('Error leave group failed')
@@ -670,14 +669,22 @@ class WhatsAppInstance {
 
     async getInviteCodeGroup(id) {
         try {
-            const jid = await this.getWhatsAppId(id)
             let Chats = await this.getChat()
-            const group = Chats.find((c) => c.id === jid)
+            const group = Chats.find((c) => c.id === id)
             if (!group)
                 throw new Error(
                     'unable to get invite code, check if the group exists'
                 )
-            return await this.instance.sock?.groupInviteCode(jid)
+            return await this.instance.sock?.groupInviteCode(id)
+        } catch (e) {
+            logger.error(e)
+            logger.error('Error get invite group failed')
+        }
+    }
+
+    async getInstanceInviteCodeGroup(id) {
+        try {
+            return await this.instance.sock?.groupInviteCode(id)
         } catch (e) {
             logger.error(e)
             logger.error('Error get invite group failed')
@@ -733,57 +740,62 @@ class WhatsAppInstance {
                 let Chats = await this.getChat()
                 let chat = Chats.find((c) => c.id === newChat.id)
                 let is_owner = false
-                if (chat.participant == undefined) {
-                    chat.participant = []
-                }
-                if (chat.participant && newChat.action == 'add') {
-                    for (const participant of newChat.participants) {
-                        chat.participant.push({ id: participant, admin: null })
+                if (chat) {
+                    if (chat.participant == undefined) {
+                        chat.participant = []
                     }
-                }
-                if (chat.participant && newChat.action == 'remove') {
-                    for (const participant of newChat.participants) {
-                        // remove group if they are owner
-                        if (chat.subjectOwner == participant) {
-                            is_owner = true
-                        }
-                        chat.participant = chat.participant.filter(
-                            (p) => p.id != participant
-                        )
-                    }
-                }
-                if (chat.participant && newChat.action == 'demote') {
-                    for (const participant of newChat.participants) {
-                        if (
-                            chat.participant.filter(
-                                (p) => p.id == participant
-                            )[0]
-                        ) {
-                            chat.participant.filter(
-                                (p) => p.id == participant
-                            )[0].admin = null
+                    if (chat.participant && newChat.action == 'add') {
+                        for (const participant of newChat.participants) {
+                            chat.participant.push({
+                                id: participant,
+                                admin: null,
+                            })
                         }
                     }
-                }
-                if (chat.participant && newChat.action == 'promote') {
-                    for (const participant of newChat.participants) {
-                        if (
-                            chat.participant.filter(
-                                (p) => p.id == participant
-                            )[0]
-                        ) {
-                            chat.participant.filter(
-                                (p) => p.id == participant
-                            )[0].admin = 'superadmin'
+                    if (chat.participant && newChat.action == 'remove') {
+                        for (const participant of newChat.participants) {
+                            // remove group if they are owner
+                            if (chat.subjectOwner == participant) {
+                                is_owner = true
+                            }
+                            chat.participant = chat.participant.filter(
+                                (p) => p.id != participant
+                            )
                         }
                     }
+                    if (chat.participant && newChat.action == 'demote') {
+                        for (const participant of newChat.participants) {
+                            if (
+                                chat.participant.filter(
+                                    (p) => p.id == participant
+                                )[0]
+                            ) {
+                                chat.participant.filter(
+                                    (p) => p.id == participant
+                                )[0].admin = null
+                            }
+                        }
+                    }
+                    if (chat.participant && newChat.action == 'promote') {
+                        for (const participant of newChat.participants) {
+                            if (
+                                chat.participant.filter(
+                                    (p) => p.id == participant
+                                )[0]
+                            ) {
+                                chat.participant.filter(
+                                    (p) => p.id == participant
+                                )[0].admin = 'superadmin'
+                            }
+                        }
+                    }
+                    if (is_owner) {
+                        Chats = Chats.filter((c) => c.id !== newChat.id)
+                    } else {
+                        Chats.filter((c) => c.id === newChat.id)[0] = chat
+                    }
+                    await this.updateDb(Chats)
                 }
-                if (is_owner) {
-                    Chats = Chats.filter((c) => c.id !== newChat.id)
-                } else {
-                    Chats.filter((c) => c.id === newChat.id)[0] = chat
-                }
-                await this.updateDb(Chats)
             }
         } catch (e) {
             logger.error(e)
@@ -804,9 +816,8 @@ class WhatsAppInstance {
     // update promote demote remove
     async groupParticipantsUpdate(id, users, action) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupParticipantsUpdate(
-                jid,
+                this.getWhatsAppId(id),
                 this.parseParticipants(users),
                 action
             )
@@ -827,9 +838,8 @@ class WhatsAppInstance {
     // only allow admins to send messages
     async groupSettingUpdate(id, action) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupSettingUpdate(
-                jid,
+                this.getWhatsAppId(id),
                 action
             )
             return res
@@ -845,9 +855,8 @@ class WhatsAppInstance {
 
     async groupUpdateSubject(id, subject) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupUpdateSubject(
-                jid,
+                this.getWhatsAppId(id),
                 subject
             )
             return res
@@ -863,9 +872,8 @@ class WhatsAppInstance {
 
     async groupUpdateDescription(id, description) {
         try {
-            const jid = await this.getWhatsAppId(id)
             const res = await this.instance.sock?.groupUpdateDescription(
-                jid,
+                this.getWhatsAppId(id),
                 description
             )
             return res
@@ -885,6 +893,38 @@ class WhatsAppInstance {
             await Chat.updateOne({ key: this.key }, { chat: object })
         } catch (e) {
             logger.error('Error updating document failed')
+        }
+    }
+
+    async readMessage(msgObj) {
+        try {
+            const key = {
+                remoteJid: msgObj.remoteJid,
+                id: msgObj.id,
+                participant: msgObj?.participant // required when reading a msg from group
+            }
+            const res = await this.instance.sock?.readMessages([key])
+            return res
+        } catch (e) {
+            logger.error('Error read message failed')
+        }
+    }
+
+    async reactMessage(id, key, emoji) {
+        try {
+            const reactionMessage = {
+                react: {
+                    text: emoji, // use an empty string to remove the reaction
+                    key: key
+                }
+            }
+            const res = await this.instance.sock?.sendMessage(
+                this.getWhatsAppId(id),
+                reactionMessage
+            )
+            return res
+        } catch (e) {
+            logger.error('Error react message failed')
         }
     }
 }
