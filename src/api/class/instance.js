@@ -359,31 +359,27 @@ class WhatsAppInstance {
         }
     }
 
-    getWhatsAppId(id) {
+    async getWhatsAppId(id) {
         if (id.includes('@g.us') || id.includes('@s.whatsapp.net')) return id
-        return id.includes('-') ? `${id}@g.us` : `${id}@s.whatsapp.net`
-    }
-
-    async verifyId(id) {
-        if (id.includes('@g.us')) return true
+        if (id.includes('-')) return `${id}@g.us`
         const [result] = await this.instance.sock?.onWhatsApp(id)
-        if (result?.exists) return true
+        if (result?.exists) return result.jid
         throw new Error('no account exists')
     }
 
     async sendTextMessage(to, message) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const data = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             { text: message }
         )
         return data
     }
 
     async sendMediaFile(to, file, type, caption = '', filename) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const data = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 mimetype: file.mimetype,
                 [type]: file.buffer,
@@ -396,10 +392,10 @@ class WhatsAppInstance {
     }
 
     async sendUrlMediaFile(to, url, type, mimeType, caption = '') {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
 
         const data = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 [type]: {
                     url: url,
@@ -429,18 +425,18 @@ class WhatsAppInstance {
     }
 
     async blockUnblock(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const status = await this.instance.sock?.updateBlockStatus(
-            this.getWhatsAppId(to),
+            jid,
             data
         )
         return status
     }
 
     async sendButtonMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 templateButtons: processButton(data.buttons),
                 text: data.text ?? '',
@@ -454,10 +450,10 @@ class WhatsAppInstance {
     }
 
     async sendContactMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const vcard = generateVC(data)
         const result = await this.instance.sock?.sendMessage(
-            await this.getWhatsAppId(to),
+            jid,
             {
                 contacts: {
                     displayName: data.fullName,
@@ -469,9 +465,9 @@ class WhatsAppInstance {
     }
 
     async sendListMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 text: data.text,
                 sections: data.sections,
@@ -487,10 +483,10 @@ class WhatsAppInstance {
     }
 
     async sendMediaButtonMessage(to, data) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
 
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to),
+            jid,
             {
                 [data.mediaType]: {
                     url: data.image,
@@ -508,9 +504,9 @@ class WhatsAppInstance {
     }
 
     async setStatus(status, to) {
-        await this.verifyId(this.getWhatsAppId(to))
+        const jid = await this.getWhatsAppId(to)
 
-        const result = await this.instance.sock?.sendPresenceUpdate(status, to)
+        const result = await this.instance.sock?.sendPresenceUpdate(status, jid)
         return result
     }
 

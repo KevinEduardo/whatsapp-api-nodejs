@@ -1,31 +1,4 @@
-<h1 align="center"> whatsapp-api-nodejs Multi Device</h1>
-<div align="center">
-<p>
-<a href="#"><img title="skynet" src="https://img.shields.io/badge/whatsapp api nodejs Multi Device-black?style=for-the-badge" alt=""></a>
-</p>
-<p>
-<a href="https://github.com/salman0ansari"><img title="Author" src="https://img.shields.io/badge/Author-Mohd Salman Ansari-black.svg?style=for-the-badge&logo=github" alt=""></a>
-</p>
-<a href="https://github.com/salman0ansari?tab=followers"><img title="Followers" src="https://img.shields.io/github/followers/salman0ansari?color=black&style=flat-square" alt=""></a>
-<a href="https://github.com/salman0ansari/whatsapp-api-nodejs/stargazers"><img title="Stars" src="https://img.shields.io/github/stars/salman0ansari/whatsapp-api-nodejs?color=black&style=flat-square" alt=""></a>
-<a href="https://github.com/salman0ansari/whatsapp-api-nodejs/network/members"><img title="Forks" src="https://img.shields.io/github/forks/salman0ansari/whatsapp-api-nodejs?color=black&style=flat-square" alt=""></a>
-<a href="https://github.com/salman0ansari/whatsapp-api-nodejs/issues"><img title="Issues" src="https://img.shields.io/github/issues/salman0ansari/whatsapp-api-nodejs?color=black&style=flat-square" alt=""></a>
-<p>
-
-<a href="http://github.com/salman0ansari/whatsapp-api-nodejs"><img title="Hits" src="http://hits.dwyl.com/salman0ansari/whatsapp-api-nodejs.svg?style=flat-square"></a>
-</p>
-<br>
-  <a href="https://www.instagram.com/salman0ansari/">
-     <img src="https://img.shields.io/badge/Instagram-E4405F.svg?style=for-the-badge&logo=Instagram&logoColor=white" alt="Instagram Badge"/></a>
-  <a href="https://t.me/salman0ansari">
-  <img src="https://img.shields.io/badge/Telegram-informational?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Badge"/>
-</a>
- <a href="https://join.skype.com/invite/rI5pLf9YIvTA">
-  <img src="https://img.shields.io/badge/Skype-00AFF0.svg?style=for-the-badge&logo=Skype&logoColor=white" alt="Skype Badge"/>
-</a>
-<br>
-<a href="https://www.buymeacoffee.com/salman0ansari" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
-</div>
+<h1 align="center"> whatsapp-api-nodejs Multi Device - Kevin Edition </h1>
 
 ---
 
@@ -167,12 +140,12 @@ curl --location --request POST 'localhost:3333/message/text?key=INSTANCE_KEY_HER
 ## Routes
 | Route  | Source File |
 | ------------- | ------------- |
-| Instance Routes  | [instance.route.js](https://github.com/salman0ansari/whatsapp-api-nodejs/blob/main/src/api/routes/instance.route.js)  |
-| Message Routes  | [message.route.js](https://github.com/salman0ansari/whatsapp-api-nodejs/blob/main/src/api/routes/message.route.js)  |
-| Group Routes  | [group.route.js](https://github.com/salman0ansari/whatsapp-api-nodejs/blob/main/src/api/routes/group.route.js)  |
-| Miscellaneous Routes  | [misc.route.js](https://github.com/salman0ansari/whatsapp-api-nodejs/blob/main/src/api/routes/misc.route.js)   |
+| Instance Routes  | [instance.route.js](https://github.com/kevineduardo/whatsapp-api-nodejs/blob/main/src/api/routes/instance.route.js)  |
+| Message Routes  | [message.route.js](https://github.com/kevineduardo/whatsapp-api-nodejs/blob/main/src/api/routes/message.route.js)  |
+| Group Routes  | [group.route.js](https://github.com/kevineduardo/whatsapp-api-nodejs/blob/main/src/api/routes/group.route.js)  |
+| Miscellaneous Routes  | [misc.route.js](https://github.com/kevineduardo/whatsapp-api-nodejs/blob/main/src/api/routes/misc.route.js)   |
 
-See all routes here [src/api/routes](https://github.com/salman0ansari/whatsapp-api-nodejs/tree/main/src/api/routes)
+See all routes here [src/api/routes](https://github.com/kevineduardo/whatsapp-api-nodejs/tree/main/src/api/routes)
 
 # Note
 
