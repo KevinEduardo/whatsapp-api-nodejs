@@ -1,20 +1,9 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
-    remoteJid: {
-        type: String,
-        required: [true, 'remoteJid is missing'],
-    },
-    id: {
-        type: String,
-        required: [true, 'id is missing'],
-        unique: true,
-    },
-    participant: {
-        type: String,
-    },
-})
+    type: [Schema.Types.Mixed],
+    });
 
-const Message = mongoose.model('Message', messageSchema)
+const Message = mongoose.model('Message', messageSchema);
 
-module.exports = Message
+module.exports = Message;

@@ -59,6 +59,10 @@ class WhatsAppInstance {
         
             return message
         },
+        getMessage: async (key) => {
+            const msg = await this.getMessage(key)
+            return msg || undefined
+        },
     }
     key = ''
     authState
@@ -186,13 +190,13 @@ class WhatsAppInstance {
         // on receive all chats
         sock?.ev.on('chats.set', async ({ chats }) => {
             this.instance.chats = []
-            const recivedChats = chats.map((chat) => {
+            const receivedChats = chats.map((chat) => {
                 return {
                     ...chat,
                     messages: [],
                 }
             })
-            this.instance.chats.push(...recivedChats)
+            this.instance.chats.push(...receivedChats)
             await this.updateDb(this.instance.chats)
             await this.updateDbGroupsParticipants()
         })
@@ -238,7 +242,7 @@ class WhatsAppInstance {
             })
         })
 
-        // on new mssage
+        // on new message
         sock?.ev.on('messages.upsert', async (m) => {
             console.log('messages.upsert')
             console.log('obj m')
@@ -247,21 +251,13 @@ class WhatsAppInstance {
                 this.instance.messages.unshift(...m.messages)
             if (m.type !== 'notify') return 
 
-            // https://adiwajshing.github.io/Baileys/#reading-messages
-            if (config.markMessagesRead) {
-                const unreadMessages = m.messages.map(msg => {
-                    return {
-                        remoteJid: msg.key.remoteJid,
-                        id: msg.key.id,
-                        participant: msg.key?.participant
-                    }
-                })
-                await sock.readMessages(unreadMessages)
-            }
-
             this.instance.messages.unshift(...m.messages)
 
             m.messages.map(async (msg) => {
+                // https://adiwajshing.github.io/Baileys/#reading-messages
+                if (config.markMessagesRead) {
+                    await sock.readMessages([msg.key])
+                }
                 if (!msg.message) return
 
                 const messageType = Object.keys(msg.message)[0]
@@ -273,6 +269,17 @@ class WhatsAppInstance {
                 )
                     return
 
+                
+                if (config.mongoose.enabled) {
+                    let alreadyThere = await Message.findOne({
+                        key: this.key,
+                    }).exec()
+                    if (!alreadyThere) {
+                        const saveMessage = new Message(msg.toJSON())
+                        await saveMessage.save()
+                    }
+                }
+                
                 const webhookData = {
                     key: this.key,
                     ...msg,
@@ -734,6 +741,13 @@ class WhatsAppInstance {
         let dbResult = await Chat.findOne({ key: key }).exec()
         let ChatObj = dbResult.chat
         return ChatObj
+    }
+
+    // get Message object from db
+    async getMessage(key = this.key) {
+        let dbResult = await Message.findOne({ key: key }).exec()
+        let MessageObj = dbResult.message
+        return MessageObj
     }
 
     // create new group by application
