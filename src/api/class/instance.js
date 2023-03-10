@@ -18,6 +18,7 @@ const path = require('path')
 const processButton = require('../helper/processbtn')
 const generateVC = require('../helper/genVc')
 const Chat = require('../models/chat.model')
+const Message = require('../models/message.model')
 const axios = require('axios')
 const config = require('../../config/config')
 const downloadMessage = require('../helper/downloadMsg')
@@ -196,7 +197,7 @@ class WhatsAppInstance {
             await this.updateDbGroupsParticipants()
         })
 
-        // on recive new chat
+        // on receive new chat
         sock?.ev.on('chats.upsert', (newChat) => {
             //console.log('chats.upsert')
             //console.log(newChat)
@@ -239,8 +240,11 @@ class WhatsAppInstance {
 
         // on new mssage
         sock?.ev.on('messages.upsert', async (m) => {
-            //console.log('messages.upsert')
-            //console.log(m)
+            console.log('messages.upsert')
+            console.log('obj m')
+            console.log(m)
+            console.log('obj m.messages')
+            console.log(m.messages)
             if (m.type === 'prepend')
                 this.instance.messages.unshift(...m.messages)
             if (m.type !== 'notify') return
