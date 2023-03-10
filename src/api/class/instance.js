@@ -242,12 +242,10 @@ class WhatsAppInstance {
         sock?.ev.on('messages.upsert', async (m) => {
             console.log('messages.upsert')
             console.log('obj m')
-            console.log(m)
-            console.log('obj m.messages')
-            console.log(m.messages)
+            console.dir(m, { depth: null });
             if (m.type === 'prepend')
                 this.instance.messages.unshift(...m.messages)
-            if (m.type !== 'notify') return
+            if (m.type !== 'notify') return 
 
             // https://adiwajshing.github.io/Baileys/#reading-messages
             if (config.markMessagesRead) {
