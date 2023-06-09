@@ -11,7 +11,7 @@ const {
     useMultiFileAuthState,
     WAMessageContent,
     WAMessageKey,
-} = require('@adiwajshing/baileys')
+} = require('@whiskeysockets/baileys')
 const { unlinkSync } = require('fs')
 const { v4: uuidv4 } = require('uuid')
 const path = require('path')

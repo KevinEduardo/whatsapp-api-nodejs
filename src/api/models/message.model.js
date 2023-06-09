@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { proto } = require('@adiwajshing/baileys');
+const { proto } = require('@whiskeysockets/baileys');
 
 const messageSchema = new mongoose.Schema({
     key: {
